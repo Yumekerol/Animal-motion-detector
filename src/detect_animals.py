@@ -37,8 +37,8 @@ train: images/train
 val: images/val
 test: images/test
 
-nc: 2
-names: ['cat', 'dog']
+nc: 3
+names: ['cat', 'dog', 'person']
 """
 
         with open("data/dataset.yaml", "w") as f:
@@ -79,7 +79,7 @@ names: ['cat', 'dog']
                                     cls = int(parts[0])
                                     coords = [float(x) for x in parts[1:]]
                                     # Ensure coordinates are in valid range [0,1]
-                                    if all(0 <= coord <= 1 for coord in coords):
+                                    if all(0 <= coord <= 1 for coord in coords) and cls in [0, 1, 2]:
                                         lines.append(line)
                                 except ValueError:
                                     continue
@@ -109,7 +109,7 @@ names: ['cat', 'dog']
         """Collect images from webcam with proper label formatting"""
         print(f"📸 Let's capture {num_images} images!")
         print("Instructions:")
-        print("- Place animals in front of the camera")
+        print("- Place animals or people in front of the camera")
         print("- Press SPACE to capture")
         print("- Press Q to quit")
 
@@ -133,15 +133,15 @@ names: ['cat', 'dog']
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord(' '):
-                # Detect animals (cat=15, dog=16 in COCO)
-                results = model(frame, classes=[15, 16], verbose=False)
+                # Detect animals and people (cat=15, dog=16, person=0 in COCO)
+                results = model(frame, classes=[0, 15, 16], verbose=False)
 
-                if self.has_animals(results):
+                if self.has_targets(results):
                     self.save_image_and_label(frame, results, captured)
                     captured += 1
                     print(f"✅ Image {captured} captured!")
                 else:
-                    print("❌ No animals detected")
+                    print("❌ No animals or people detected")
 
             elif key == ord('q'):
                 break
@@ -150,8 +150,8 @@ names: ['cat', 'dog']
         cv2.destroyAllWindows()
         print(f"📊 Dataset created with {captured} images!")
 
-    def has_animals(self, results):
-        """Check if animals were detected"""
+    def has_targets(self, results):
+        """Check if animals or people were detected"""
         for result in results:
             if result.boxes is not None and len(result.boxes) > 0:
                 return True
@@ -191,8 +191,17 @@ names: ['cat', 'dog']
                         w = max(0, min(1, w))
                         h = max(0, min(1, h))
 
-                        # Convert COCO class to YOLO class (cat=15->0, dog=16->1)
-                        yolo_class = 0 if cls == 15 else 1
+                        # Convert COCO class to YOLO class
+                        # COCO: person=0, cat=15, dog=16
+                        # YOLO: cat=0, dog=1, person=2
+                        if cls == 15:  # cat
+                            yolo_class = 0
+                        elif cls == 16:  # dog
+                            yolo_class = 1
+                        elif cls == 0:   # person
+                            yolo_class = 2
+                        else:
+                            continue  # Skip unknown classes
 
                         # Write with proper formatting
                         f.write(f"{yolo_class} {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f}\n")
@@ -231,7 +240,7 @@ names: ['cat', 'dog']
                         cls = int(parts[0])
                         coords = [float(x) for x in parts[1:]]
 
-                        if cls not in [0, 1]:
+                        if cls not in [0, 1, 2]:  # cat, dog, person
                             print(f"❌ {label_file.name} line {i + 1}: Invalid class {cls}")
                             issues += 1
 
@@ -284,10 +293,16 @@ names: ['cat', 'dog']
             print("✅ Training completed!")
 
             # Copy best model
-            best_path = "runs/detect/animal_detector15/weights/best.pt"
+            best_path = "runs/detect/animal_detector/weights/best.pt"
             if os.path.exists(best_path):
                 shutil.copy(best_path, "models/best.pt")
                 print("📋 Model saved to: models/best.pt")
+            else:
+                # Try alternative path
+                alt_path = "runs/detect/animal_detector2/weights/best.pt"
+                if os.path.exists(alt_path):
+                    shutil.copy(alt_path, "models/best.pt")
+                    print("📋 Model saved to: models/best.pt")
 
             return True
 
@@ -323,7 +338,7 @@ names: ['cat', 'dog']
 
             # Get predictions
             custom_results = custom_model(frame, conf=0.5, verbose=False)
-            original_results = original_model(frame, classes=[15, 16], conf=0.5, verbose=False)
+            original_results = original_model(frame, classes=[0, 15, 16], conf=0.5, verbose=False)
 
             # Create side-by-side comparison
             height, width = frame.shape[:2]
@@ -362,7 +377,9 @@ names: ['cat', 'dog']
                     if hasattr(result, 'names'):
                         class_name = result.names[cls]
                     else:
-                        class_name = ['cat', 'dog'][cls] if cls < 2 else 'animal'
+                        # For custom model: 0=cat, 1=dog, 2=person
+                        class_names = ['cat', 'dog', 'person']
+                        class_name = class_names[cls] if cls < 3 else 'unknown'
 
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f'{class_name} {conf:.2f}',
@@ -376,7 +393,7 @@ names: ['cat', 'dog']
 def main():
     detector = FixedAnimalDetector()
 
-    print("🐾 Fixed Animal Detector")
+    print("🐾 Animal and Person Detector")
     print("=" * 50)
     print("1. Fix existing corrupted labels")
     print("2. Collect new images (webcam)")
