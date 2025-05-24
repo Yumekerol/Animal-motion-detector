@@ -60,34 +60,33 @@ names: ['cat', 'dog', 'person']
 
             for label_file in label_path.glob("*.txt"):
                 try:
-                    # Read the corrupted file
+
                     with open(label_file, 'r') as f:
                         content = f.read()
 
-                    # Fix the newline characters
+
                     fixed_content = content.replace('\\n', '\n')
 
-                    # Remove any trailing characters that aren't numbers or spaces
+
                     lines = []
                     for line in fixed_content.split('\n'):
                         line = line.strip()
                         if line and not line.endswith(('\\', 'n')):
-                            # Validate YOLO format: class x_center y_center width height
+
                             parts = line.split()
                             if len(parts) == 5:
                                 try:
                                     cls = int(parts[0])
                                     coords = [float(x) for x in parts[1:]]
-                                    # Ensure coordinates are in valid range [0,1]
+
                                     if all(0 <= coord <= 1 for coord in coords) and cls in [0, 1, 2]:
                                         lines.append(line)
                                 except ValueError:
                                     continue
 
-                    # Write the fixed content
                     with open(label_file, 'w') as f:
                         f.write('\n'.join(lines))
-                        if lines:  # Add final newline if there's content
+                        if lines:
                             f.write('\n')
 
                     fixed_count += 1
@@ -98,7 +97,6 @@ names: ['cat', 'dog', 'person']
 
         print(f"🔧 Fixed {fixed_count} label files!")
 
-        # Clean cache files to force regeneration
         cache_files = ["data/labels/train.cache", "data/labels/val.cache"]
         for cache_file in cache_files:
             if os.path.exists(cache_file):
@@ -133,7 +131,6 @@ names: ['cat', 'dog', 'person']
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord(' '):
-                # Detect animals and people (cat=15, dog=16, person=0 in COCO)
                 results = model(frame, classes=[0, 15, 16], verbose=False)
 
                 if self.has_targets(results):
@@ -159,15 +156,12 @@ names: ['cat', 'dog', 'person']
 
     def save_image_and_label(self, frame, results, img_id):
         """Save image and label with proper formatting"""
-        # Split data: 80% train, 20% val
         split = 'train' if img_id < int(0.8 * 15) else 'val'
 
-        # Save image
         img_filename = f"animal_{img_id:03d}.jpg"
         img_path = f"data/images/{split}/{img_filename}"
         cv2.imwrite(img_path, frame)
 
-        # Save labels in proper YOLO format
         height, width = frame.shape[:2]
         label_path = f"data/labels/{split}/animal_{img_id:03d}.txt"
 
@@ -175,35 +169,28 @@ names: ['cat', 'dog', 'person']
             for result in results:
                 if result.boxes is not None:
                     for box in result.boxes:
-                        # Get coordinates
                         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                         cls = int(box.cls[0])
 
-                        # Convert to YOLO format (normalized)
                         x_center = (x1 + x2) / 2 / width
                         y_center = (y1 + y2) / 2 / height
                         w = (x2 - x1) / width
                         h = (y2 - y1) / height
 
-                        # Ensure values are in valid range
                         x_center = max(0, min(1, x_center))
                         y_center = max(0, min(1, y_center))
                         w = max(0, min(1, w))
                         h = max(0, min(1, h))
 
-                        # Convert COCO class to YOLO class
-                        # COCO: person=0, cat=15, dog=16
-                        # YOLO: cat=0, dog=1, person=2
-                        if cls == 15:  # cat
+                        if cls == 15:
                             yolo_class = 0
-                        elif cls == 16:  # dog
+                        elif cls == 16:
                             yolo_class = 1
-                        elif cls == 0:   # person
+                        elif cls == 0:
                             yolo_class = 2
                         else:
-                            continue  # Skip unknown classes
+                            continue
 
-                        # Write with proper formatting
                         f.write(f"{yolo_class} {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f}\n")
 
     def validate_dataset(self):
@@ -218,7 +205,6 @@ names: ['cat', 'dog', 'person']
         print(f"📊 Training: {len(train_images)} images, {len(train_labels)} labels")
         print(f"📊 Validation: {len(val_images)} images, {len(val_labels)} labels")
 
-        # Check for label issues
         issues = 0
         for label_file in train_labels + val_labels:
             try:
@@ -240,7 +226,7 @@ names: ['cat', 'dog', 'person']
                         cls = int(parts[0])
                         coords = [float(x) for x in parts[1:]]
 
-                        if cls not in [0, 1, 2]:  # cat, dog, person
+                        if cls not in [0, 1, 2]:
                             print(f"❌ {label_file.name} line {i + 1}: Invalid class {cls}")
                             issues += 1
 
@@ -267,39 +253,34 @@ names: ['cat', 'dog', 'person']
         """Train model with better error handling"""
         print(f"🚀 Starting training with {epochs} epochs...")
 
-        # Validate dataset first
         if not self.validate_dataset():
             print("❌ Dataset validation failed! Fix issues before training.")
             return False
 
         try:
-            # Load model
             model = YOLO('yolov8n.pt')
 
-            # Train with better parameters
             results = model.train(
                 data='data/dataset.yaml',
                 epochs=epochs,
                 imgsz=640,
-                batch=2,  # Smaller batch size for stability
+                batch=2,
                 name='animal_detector',
                 patience=15,
                 device='cpu',
-                workers=1,  # Reduce workers for stability
-                cache=False,  # Disable caching to avoid issues
+                workers=1,
+                cache=False,
                 verbose=True
             )
 
             print("✅ Training completed!")
 
-            # Copy best model
-            best_path = "runs/detect/animal_detector/weights/best.pt"
+            best_path = "runs/detect/animal_detector30/weights/best.pt"
             if os.path.exists(best_path):
                 shutil.copy(best_path, "models/best.pt")
                 print("📋 Model saved to: models/best.pt")
             else:
-                # Try alternative path
-                alt_path = "runs/detect/animal_detector2/weights/best.pt"
+                alt_path = "runs/detect/animal_detector30/weights/best.pt"
                 if os.path.exists(alt_path):
                     shutil.copy(alt_path, "models/best.pt")
                     print("📋 Model saved to: models/best.pt")
@@ -336,20 +317,16 @@ names: ['cat', 'dog', 'person']
             if not ret:
                 break
 
-            # Get predictions
             custom_results = custom_model(frame, conf=0.5, verbose=False)
             original_results = original_model(frame, classes=[0, 15, 16], conf=0.5, verbose=False)
 
-            # Create side-by-side comparison
             height, width = frame.shape[:2]
             display_frame = np.zeros((height, width * 2, 3), dtype=np.uint8)
 
-            # Custom model results (left side)
             left_frame = frame.copy()
             self.draw_detections(left_frame, custom_results, "CUSTOM MODEL", (0, 255, 0))
             display_frame[0:height, 0:width] = left_frame
 
-            # Original model results (right side)
             right_frame = frame.copy()
             self.draw_detections(right_frame, original_results, "ORIGINAL MODEL", (255, 0, 0))
             display_frame[0:height, width:width * 2] = right_frame
@@ -377,7 +354,7 @@ names: ['cat', 'dog', 'person']
                     if hasattr(result, 'names'):
                         class_name = result.names[cls]
                     else:
-                        # For custom model: 0=cat, 1=dog, 2=person
+
                         class_names = ['cat', 'dog', 'person']
                         class_name = class_names[cls] if cls < 3 else 'unknown'
 
