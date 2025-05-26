@@ -275,12 +275,12 @@ names: ['cat', 'dog', 'person']
 
             print("✅ Training completed!")
 
-            best_path = "runs/detect/animal_detector30/weights/best.pt"
+            best_path = "runs/detect/animal_detector37/weights/best.pt"
             if os.path.exists(best_path):
                 shutil.copy(best_path, "models/best.pt")
                 print("📋 Model saved to: models/best.pt")
             else:
-                alt_path = "runs/detect/animal_detector30/weights/best.pt"
+                alt_path = "runs/detect/animal_detector37/weights/best.pt"
                 if os.path.exists(alt_path):
                     shutil.copy(alt_path, "models/best.pt")
                     print("📋 Model saved to: models/best.pt")
@@ -296,7 +296,6 @@ names: ['cat', 'dog', 'person']
             return False
 
     def test_model(self):
-        """Test trained model"""
         model_path = "models/best.pt"
 
         if not os.path.exists(model_path):

@@ -34,7 +34,7 @@ class RoboflowAnimalDetector:
         print("✅ Folder structure created!")
 
     def download_multiple_datasets(self):
-        print("📥 Downloading multiple datasets from Roboflow...")
+        print("📥 Downloading dataset from Roboflow...")
 
         datasets_config = [
             {
@@ -43,20 +43,6 @@ class RoboflowAnimalDetector:
                 "project": "klasifikasi-hewan-ne5og",
                 "version": 1,
                 "name": "dataset1"
-            },
-            {
-                "api_key": "TVcshbt65yMqspCiLOUN",
-                "workspace": "test-ddt4p",
-                "project": "animals-ksxhf",
-                "version": 2,
-                "name": "dataset2"
-            },
-            {
-                "api_key": "TVcshbt65yMqspCiLOUN",
-                "workspace": "imglabeling-6muzc",
-                "project": "animals-uagqc",
-                "version": 1,
-                "name": "dataset3"
             }
         ]
 
@@ -137,7 +123,7 @@ class RoboflowAnimalDetector:
                 source_labels = Path(dataset_path, split, 'labels')
 
                 if not source_images.exists():
-                    source_images = Path(dataset_path, split)  # Some datasets have images directly in split folder
+                    source_images = Path(dataset_path, split)
                     source_labels = Path(dataset_path, split)
 
                 if source_images.exists():
@@ -151,7 +137,6 @@ class RoboflowAnimalDetector:
                         dest_image = Path(self.merged_dataset_path, split, 'images', new_image_name)
                         shutil.copy2(image_file, dest_image)
 
-                        # Copy and relabel annotation
                         label_file = source_labels / f"{image_file.stem}.txt"
                         if label_file.exists():
                             dest_label = Path(self.merged_dataset_path, split, 'labels', f"img_{file_counter:06d}.txt")
@@ -257,7 +242,7 @@ class RoboflowAnimalDetector:
             label_files = list(Path(train_labels_path).glob("*.txt"))
             issues = 0
 
-            for label_file in label_files[:20]:  # Check more files
+            for label_file in label_files[:20]:
                 try:
                     with open(label_file, 'r') as f:
                         lines = f.readlines()
@@ -297,7 +282,7 @@ class RoboflowAnimalDetector:
 
         return False
 
-    def train_model(self, epochs=100, model_size='n'):
+    def train_model(self, epochs=100, model_size='l'):
         if not os.path.exists(self.merged_dataset_path):
             print("❌ Merged dataset not available! Download and merge datasets first.")
             return False
@@ -359,7 +344,7 @@ class RoboflowAnimalDetector:
         latest_run = max(run_dirs, key=lambda x: x.stat().st_mtime)
         return str(latest_run)
 
-    def test_model_webcam(self, model_path="models/best5.pt"):
+    def test_model_webcam(self, model_path="models/best8.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -405,7 +390,7 @@ class RoboflowAnimalDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-    def test_model_on_image(self, model_path="models/best5.pt"):
+    def test_model_on_image(self, model_path="models/best8.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -455,7 +440,7 @@ class RoboflowAnimalDetector:
         except Exception as e:
             print(f"❌ Error processing image: {e}")
 
-    def test_model_on_video(self, model_path="models/best5.pt"):
+    def test_model_on_video(self, model_path="models/best8.pt"):
         """Test model on video file"""
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
@@ -638,11 +623,12 @@ def main():
     print("3. Train model (Nano - Fast)")
     print("4. Train model (Small - Balanced)")
     print("5. Train model (Medium - Accurate)")
-    print("6. Test model (Webcam)")
-    print("7. Test model (Image file)")
-    print("8. Test model (Video file)")
-    print("9. Evaluate model performance")
-    print("10. Run full pipeline")
+    print("6. Train model (Large - Very Accurate)")
+    print("7. Test model (Webcam)")
+    print("8. Test model (Image file)")
+    print("9. Test model (Video file)")
+    print("10. Evaluate model performance")
+    print("11. Run full pipeline")
     print("=" * 60)
 
     choice = input("Enter your choice (1-11): ").strip()
@@ -670,23 +656,28 @@ def main():
             detector.train_model(epochs=300, model_size='m')
 
     elif choice == "6":
-        if detector.class_names or (detector.load_dataset_config()):
-            detector.test_model_webcam()
+        if os.path.exists(detector.merged_dataset_path) or detector.download_and_merge_datasets():
+            detector.load_dataset_config()
+            detector.train_model(epochs=300, model_size='l')
 
     elif choice == "7":
         if detector.class_names or (detector.load_dataset_config()):
-            detector.test_model_on_image()
+            detector.test_model_webcam()
 
     elif choice == "8":
         if detector.class_names or (detector.load_dataset_config()):
-            detector.test_model_on_video()
+            detector.test_model_on_image()
 
     elif choice == "9":
+        if detector.class_names or (detector.load_dataset_config()):
+            detector.test_model_on_video()
+
+    elif choice == "10":
         if os.path.exists(detector.merged_dataset_path) or detector.download_and_merge_datasets():
             detector.load_dataset_config()
             detector.evaluate_model()
 
-    elif choice == "10":
+    elif choice == "11":
         print("🚀 Running full pipeline...")
 
         print("\n📥 Step 1: Download and merge datasets")
