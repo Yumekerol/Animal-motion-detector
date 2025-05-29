@@ -112,11 +112,11 @@ class ObjectTrackingSystem:
                 self.model = YOLO(self.model_path)
                 print(f"✅ Custom model loaded from {self.model_path}")
             else:
-                self.model = YOLO('yolov8n.pt')
+                self.model = YOLO('../src/yolov8n.pt')
                 print("⚠️ Using original YOLOv8 model (custom model not found)")
         except Exception as e:
             print(f"❌ Error loading model: {e}")
-            self.model = YOLO('yolov8n.pt')
+            self.model = YOLO('../src/yolov8n.pt')
 
     def get_detections(self, frame):
         if self.model is None:

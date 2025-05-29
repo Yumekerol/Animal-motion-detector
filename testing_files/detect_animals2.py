@@ -39,8 +39,8 @@ class RoboflowAnimalDetector:
         datasets_config = [
             {
                 "api_key": "TVcshbt65yMqspCiLOUN",
-                "workspace": "araa-gjjv3",
-                "project": "klasifikasi-hewan-ne5og",
+                "workspace": "bottle-7s3lj",
+                "project": "bottle-gcqnx",
                 "version": 1,
                 "name": "dataset1"
             }
@@ -344,7 +344,7 @@ class RoboflowAnimalDetector:
         latest_run = max(run_dirs, key=lambda x: x.stat().st_mtime)
         return str(latest_run)
 
-    def test_model_webcam(self, model_path="models/best8.pt"):
+    def test_model_webcam(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -390,7 +390,7 @@ class RoboflowAnimalDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-    def test_model_on_image(self, model_path="models/best8.pt"):
+    def test_model_on_image(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -440,7 +440,7 @@ class RoboflowAnimalDetector:
         except Exception as e:
             print(f"❌ Error processing image: {e}")
 
-    def test_model_on_video(self, model_path="models/best8.pt"):
+    def test_model_on_video(self, model_path="models/best11.pt"):
         """Test model on video file"""
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")

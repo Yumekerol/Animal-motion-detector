@@ -111,7 +111,7 @@ names: ['cat', 'dog', 'person']
         print("- Press SPACE to capture")
         print("- Press Q to quit")
 
-        model = YOLO('yolov8n.pt')
+        model = YOLO('../src/yolov8n.pt')
         cap = cv2.VideoCapture(0)
         captured = 0
 
@@ -258,7 +258,7 @@ names: ['cat', 'dog', 'person']
             return False
 
         try:
-            model = YOLO('yolov8n.pt')
+            model = YOLO('../src/yolov8n.pt')
 
             results = model.train(
                 data='data/dataset.yaml',
@@ -307,7 +307,7 @@ names: ['cat', 'dog', 'person']
         print("Press Q to quit")
 
         custom_model = YOLO(model_path)
-        original_model = YOLO('yolov8n.pt')
+        original_model = YOLO('../src/yolov8n.pt')
 
         cap = cv2.VideoCapture(0)
 

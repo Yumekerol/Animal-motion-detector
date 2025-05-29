@@ -153,7 +153,7 @@ class ModelEvaluator:
 
         print("🔍 Comparing with baseline YOLOv8...")
 
-        baseline_model = YOLO('yolov8n.pt')
+        baseline_model = YOLO('../src/yolov8n.pt')
 
         cap = cv2.VideoCapture(0)
 
