@@ -25,11 +25,8 @@ export default {
     const router = useRouter()
 
     const menuItems = [
-      { id: 1, icon: '1', text: 'Download and merge datasets', route: '/datasets' },
-      { id: 2, icon: '2', text: 'Validate merged dataset', route: '/datasets' },
-      { id: 3, icon: '3', text: 'Train model', route: '/training' },
-      { id: 9, icon: '4', text: 'Test model', route: '/testing' },
-      { id: 10, icon: '5', text: 'Evaluate model performance', route: '/testing' }
+      { id: 9, icon: '1', text: 'Test model', route: '/testing' },
+      { id: 10, icon: '2', text: 'Evaluate model performance', route: '/testing' }
     ]
 
     const navigateTo = (route) => {
@@ -46,7 +43,7 @@ export default {
 
 <style scoped>
 .home-container {
-  height: calc(100vh - 80px); /* Altura total menos o header */
+  height: calc(100vh - 80px);
   overflow: auto;
   padding: 20px;
 }

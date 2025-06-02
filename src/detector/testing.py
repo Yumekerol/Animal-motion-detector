@@ -2,7 +2,8 @@ import os
 import cv2
 from pathlib import Path
 from ultralytics import YOLO
-
+from collections import defaultdict
+import numpy as np
 class ModelTester:
     def __init__(self, dataset_handler):
         self.dataset_handler = dataset_handler
@@ -207,8 +208,9 @@ class ModelTester:
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         detection_count = 0
-        class_counts = {}
+        class_counts = defaultdict(int)
 
+        # Process detections
         for result in results:
             if result.boxes is not None:
                 for box in result.boxes:
@@ -221,7 +223,8 @@ class ModelTester:
                     else:
                         class_name = f'Class_{cls}'
 
-                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
+                    class_counts[class_name] += 1
+                    detection_count += 1
 
                     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
                               (255, 0, 255), (0, 255, 255), (128, 0, 128), (255, 165, 0)]
@@ -236,15 +239,46 @@ class ModelTester:
                     cv2.putText(annotated_frame, label, (x1, y1 - 5),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-                    detection_count += 1
+        # Create pie chart visualization
+        if class_counts:
+            pie_chart_size = 150
+            pie_chart = np.zeros((pie_chart_size, pie_chart_size, 3), dtype=np.uint8)
+
+            total = sum(class_counts.values())
+            start_angle = 0
+            colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+                      (255, 0, 255), (0, 255, 255), (128, 0, 128), (255, 165, 0)]
+
+            for i, (class_name, count) in enumerate(class_counts.items()):
+                angle = 360 * (count / total)
+                color = colors[i % len(colors)]
+                cv2.ellipse(pie_chart,
+                            (pie_chart_size // 2, pie_chart_size // 2),
+                            (pie_chart_size // 2 - 5, pie_chart_size // 2 - 5),
+                            0, start_angle, start_angle + angle,
+                            color, -1)
+                start_angle += angle
+
+            cv2.circle(pie_chart,
+                       (pie_chart_size // 2, pie_chart_size // 2),
+                       pie_chart_size // 4,
+                       (255, 255, 255), -1)
+
+            text = f"{total}"
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+            cv2.putText(pie_chart, text,
+                        (pie_chart_size // 2 - text_size[0] // 2, pie_chart_size // 2 + text_size[1] // 2),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
+            annotated_frame[10:10 + pie_chart_size, -10 - pie_chart_size:-10] = pie_chart
 
         y_offset = 70
         cv2.putText(annotated_frame, f'Total Detections: {detection_count}',
                     (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        for class_name, count in class_counts.items():
+        for i, (class_name, count) in enumerate(class_counts.items()):
             y_offset += 25
             cv2.putText(annotated_frame, f'{class_name}: {count}',
-                        (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                        (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         return annotated_frame

@@ -318,8 +318,8 @@ class RoboflowAnimalDetector:
             if run_dir:
                 best_path = os.path.join(run_dir, "weights", "best.pt")
                 if os.path.exists(best_path):
-                    shutil.copy(best_path, "models/best_merged.pt")
-                    print("📋 Model saved to: models/best_merged.pt")
+                    shutil.copy(best_path, "models/best11.pt")
+                    print("📋 Model saved to: models/best11.pt")
 
                     last_path = os.path.join(run_dir, "weights", "last.pt")
                     if os.path.exists(last_path):
@@ -344,11 +344,12 @@ class RoboflowAnimalDetector:
         latest_run = max(run_dirs, key=lambda x: x.stat().st_mtime)
         return str(latest_run)
 
-    def test_model_webcam(self, model_path="models/best12.pt"):
+    def test_model_webcam(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
             return
+
 
         print("🎥 Testing merged model with webcam...")
         print("📋 Classes that can be detected:")
@@ -390,7 +391,7 @@ class RoboflowAnimalDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-    def test_model_on_image(self, model_path="models/best12.pt"):
+    def test_model_on_image(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -440,7 +441,7 @@ class RoboflowAnimalDetector:
         except Exception as e:
             print(f"❌ Error processing image: {e}")
 
-    def test_model_on_video(self, model_path="models/best12.pt"):
+    def test_model_on_video(self, model_path="models/best11.pt"):
         """Test model on video file"""
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
@@ -542,14 +543,17 @@ class RoboflowAnimalDetector:
         except Exception as e:
             print(f"❌ Error processing video: {e}")
 
-    def draw_detections(self, frame, results):
+    def draw_detections(self, frame, results, class_names=None):
         annotated_frame = frame.copy()
 
-        cv2.putText(annotated_frame, "Merged Animal Detector",
+        if class_names is None:
+            class_names = self.class_names if hasattr(self, 'class_names') else {}
+
+        cv2.putText(annotated_frame, "Animal Detector",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         detection_count = 0
-        class_counts = {}
+        class_counts = defaultdict(int)
 
         for result in results:
             if result.boxes is not None:
@@ -558,12 +562,9 @@ class RoboflowAnimalDetector:
                     conf = float(box.conf[0])
                     cls = int(box.cls[0])
 
-                    if cls < len(self.class_names):
-                        class_name = self.class_names[cls]
-                    else:
-                        class_name = f'Class_{cls}'
-
-                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
+                    class_name = class_names.get(cls, f'Class_{cls}') if class_names else f'Class_{cls}'
+                    class_counts[class_name] += 1
+                    detection_count += 1
 
                     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
                               (255, 0, 255), (0, 255, 255), (128, 0, 128), (255, 165, 0)]
@@ -578,8 +579,6 @@ class RoboflowAnimalDetector:
                     cv2.putText(annotated_frame, label, (x1, y1 - 5),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-                    detection_count += 1
-
         y_offset = 70
         cv2.putText(annotated_frame, f'Total Detections: {detection_count}',
                     (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
@@ -591,7 +590,7 @@ class RoboflowAnimalDetector:
 
         return annotated_frame
 
-    def evaluate_model(self, model_path="models/best_merged.pt"):
+    def evaluate_model(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Model not found!")
             return

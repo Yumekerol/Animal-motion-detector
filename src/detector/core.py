@@ -5,6 +5,7 @@ from .training import ModelTrainer
 from .testing import ModelTester
 from .evaluation import ModelEvaluator
 
+
 class RoboflowAnimalDetector:
     def __init__(self):
         self.dataset_handler = DatasetHandler()
@@ -28,13 +29,13 @@ class RoboflowAnimalDetector:
     def train_model(self, epochs=100, model_size='l'):
         return self.trainer.train_model(epochs, model_size)
 
-    def test_model_webcam(self, model_path="models/best11.pt"):
+    def test_model_webcam(self, model_path="models/best12.pt"):
         self.tester.test_model_webcam(model_path)
 
-    def test_model_on_image(self, model_path="models/best11.pt"):
+    def test_model_on_image(self, model_path="models/best12.pt"):
         self.tester.test_model_on_image(model_path)
 
-    def test_model_on_video(self, model_path="models/best11.pt"):
+    def test_model_on_video(self, model_path="models/best12.pt"):
         self.tester.test_model_on_video(model_path)
 
     def evaluate_model(self, model_path="models/best_merged.pt"):

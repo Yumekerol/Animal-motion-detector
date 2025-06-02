@@ -1,0 +1,13 @@
+names:
+- cat
+- dog
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: bottle-gcqnx
+  url: https://universe.roboflow.com/bottle-7s3lj/bottle-gcqnx/dataset/1
+  version: 1
+  workspace: bottle-7s3lj
+test: ../test/images
+train: ../train/images
+val: ../valid/images
