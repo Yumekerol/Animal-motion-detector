@@ -1,10 +1,8 @@
 <template>
   <header class="header">
-    <div class="logo-container">
-      <img src="/logo.png" alt="Logo" class="logo" />
-      <div class="logo-text">
-        <h1>DETECT</h1>
-        <p>Stray animals</p>
+    <div class="header-content">
+      <div class="logo-container">
+        <img src="/logo.png" alt="Logo" class="logo" />
       </div>
     </div>
   </header>
@@ -18,18 +16,23 @@ export default {
 
 <style scoped>
 .header {
-  background-color: #2c3e50;
+  background-color: #8D8A33;
   color: white;
-  padding: 1rem 0;
-  width: 100%;
+  padding: 1rem 10px;
+  width: 100vw;
+  left: 0;
+  right: 0;
+  margin: 0;
 }
 
 .header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
 }
-
 
 .logo-container {
   display: flex;
@@ -38,17 +41,6 @@ export default {
 }
 
 .logo {
-  height: 50px;
-}
-
-.logo-text h1 {
-  font-size: 1.5rem;
-  margin: 0;
-}
-
-.logo-text p {
-  font-size: 0.9rem;
-  margin: 0;
-  opacity: 0.8;
+  height: 300px;
 }
 </style>

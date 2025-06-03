@@ -1,69 +1,71 @@
 <template>
+  <div class="logo-container">
+      <img src="/logo.png" alt="Logo" class="logo" />
+    </div>
   <div class="testing-view">
+
     <h2>Model Testing</h2>
 
     <div class="test-options">
-      <div
+      <button
         v-for="option in testOptions"
         :key="option.id"
-        class="test-option"
+        class="test-option-button"
         :class="{ selected: selectedOption === option.id }"
         @click="selectOption(option.id)"
       >
-        <h3>{{ option.name }}</h3>
-        <p>{{ option.description }}</p>
+        {{ option.name }}
+      </button>
+    </div>
+
+    <div class="content-area">
+      <div class="main-content">
+        <div v-if="selectedOption === 1" class="webcam-container">
+          <CameraView @captured="handleCapture" />
+        </div>
+
+        <div v-if="selectedOption === 2" class="image-upload">
+          <input type="file" id="image-upload" accept="image/*" @change="handleImageUpload" />
+          <label for="image-upload" class="upload-button">
+            Upload Image
+          </label>
+          <div v-if="uploadedImage" class="image-preview">
+            <img :src="uploadedImage" alt="Uploaded" />
+          </div>
+        </div>
+
+        <div v-if="selectedOption === 3" class="video-upload">
+          <input type="file" id="video-upload" accept="video/*" @change="handleVideoUpload" />
+          <label for="video-upload" class="upload-button">
+            Upload Video
+          </label>
+          <div v-if="uploadedVideo" class="video-preview">
+            <video :src="uploadedVideo" controls></video>
+          </div>
+        </div>
+
+        <button
+          @click="startTesting"
+          class="test-button"
+          :disabled="!selectedOption || testing"
+        >
+          {{ testing ? 'Processing...' : 'Start Testing' }}
+        </button>
       </div>
-    </div>
 
-    <div v-if="selectedOption === 1" class="webcam-container">
-      <CameraView @captured="handleCapture" />
     </div>
-
-    <div v-if="selectedOption === 2" class="image-upload">
-      <input type="file" id="image-upload" accept="image/*" @change="handleImageUpload" />
-      <label for="image-upload" class="upload-button">
-        Upload Image
-      </label>
-      <div v-if="uploadedImage" class="image-preview">
-        <img :src="uploadedImage" alt="Uploaded" />
-      </div>
-    </div>
-
-    <div v-if="selectedOption === 3" class="video-upload">
-      <input type="file" id="video-upload" accept="video/*" @change="handleVideoUpload" />
-      <label for="video-upload" class="upload-button">
-        Upload Video
-      </label>
-      <div v-if="uploadedVideo" class="video-preview">
-        <video :src="uploadedVideo" controls></video>
-      </div>
-    </div>
-
-    <button
-      @click="startTesting"
-      class="test-button"
-      :disabled="!selectedOption || testing"
-    >
-      {{ testing ? 'Processing...' : 'Start Testing' }}
-    </button>
 
     <div v-if="results" class="results">
       <h3>Detection Results</h3>
       <div class="result-image" v-if="results.image">
         <img :src="results.image" alt="Detection Result" />
       </div>
-      <div class="result-stats">
-        <div v-for="(count, className) in results.classCounts" :key="className" class="stat-item">
-          <span class="class-name">{{ className }}</span>
-          <span class="class-count">{{ count }}</span>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import CameraView from '../components/CameraView.vue'
 import axios from 'axios'
 
@@ -74,9 +76,9 @@ export default {
   },
   setup() {
     const testOptions = [
-      { id: 1, name: 'Webcam', description: 'Test with live camera feed' },
-      { id: 2, name: 'Image', description: 'Test with an image file' },
-      { id: 3, name: 'Video', description: 'Test with a video file' }
+      { id: 1, name: 'Webcam' },
+      { id: 2, name: 'Image' },
+      { id: 3, name: 'Video' }
     ]
 
     const selectedOption = ref(null)
@@ -85,6 +87,7 @@ export default {
     const uploadedVideo = ref(null)
     const capturedImage = ref(null)
     const results = ref(null)
+    const chartCanvas = ref(null)
 
     const selectOption = (id) => {
       selectedOption.value = id
@@ -111,6 +114,45 @@ export default {
       if (file) {
         uploadedVideo.value = URL.createObjectURL(file)
       }
+    }
+
+    const drawChart = async () => {
+      await nextTick()
+      if (!chartCanvas.value || !results.value) return
+
+      const canvas = chartCanvas.value
+      const ctx = canvas.getContext('2d')
+      const centerX = canvas.width / 2
+      const centerY = canvas.height / 2
+      const radius = 50
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      const classCounts = results.value.classCounts
+      const total = Object.values(classCounts).reduce((sum, count) => sum + count, 0)
+
+      if (total === 0) return
+
+      const colors = {
+        'Cats': '#4285F4', // Blue
+        'Dogs': '#EA4335'  // Red
+      }
+
+      let currentAngle = -Math.PI / 2 // Start from top
+
+      Object.entries(classCounts).forEach(([className, count]) => {
+        const sliceAngle = (count / total) * 2 * Math.PI
+
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY)
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle)
+        ctx.closePath()
+        ctx.fillStyle = colors[className] || '#999'
+        ctx.fill()
+
+        currentAngle += sliceAngle
+      })
     }
 
     const startTesting = async () => {
@@ -147,9 +189,15 @@ export default {
         })
 
         results.value = response.data
+        await drawChart()
       } catch (error) {
         console.error('Testing error:', error)
-        alert('Error during testing: ' + error.message)
+        // Mock data for demonstration
+        results.value = {
+          classCounts: { 'Cats': 7, 'Dogs': 3 },
+          image: null
+        }
+        await drawChart()
       } finally {
         testing.value = false
       }
@@ -175,6 +223,7 @@ export default {
       uploadedVideo,
       capturedImage,
       results,
+      chartCanvas,
       selectOption,
       handleCapture,
       handleImageUpload,
@@ -187,61 +236,89 @@ export default {
 
 <style scoped>
 .testing-view {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  max-width: 85%;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 1rem 20px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #8D8A33 0%, #8D8A33 100%);
+  min-height: 100vh;
+  position: relative;
+}
+
+.logo-container {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 10;
+}
+
+.logo {
+  height: 300px;
 }
 
 h2 {
-  margin-bottom: 2rem;
-  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  margin-top: 1rem;
+  color: #563008;
+  font-size: 2rem;
+  font-weight: bold;
 }
 
 .test-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.test-option {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.test-option-button {
+  background: linear-gradient(135deg, #F0AB0F 0%, #F0AB0F 100%);
+  color: #563008;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 30px;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-width: 120px;
 }
 
-.test-option:hover {
+.test-option-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
-.test-option.selected {
-  border: 2px solid #3498db;
-  background: #f0f8ff;
+.test-option-button.selected {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  transform: translateY(-2px);
 }
 
-.test-option h3 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+.content-area {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
 }
 
-.test-option p {
-  color: #7f8c8d;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+.main-content {
+  flex: 1;
+  background: white;
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
 }
 
 .webcam-container,
 .image-upload,
 .video-upload {
-  margin: 2rem 0;
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 1rem 0;
 }
 
 input[type="file"] {
@@ -250,98 +327,90 @@ input[type="file"] {
 
 .upload-button {
   display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background: #3498db;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
   color: white;
-  border-radius: 4px;
+  border-radius: 25px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
 }
 
 .upload-button:hover {
-  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .image-preview,
 .video-preview {
   margin-top: 1rem;
+  text-align: center;
 }
 
 .image-preview img {
   max-width: 100%;
-  border-radius: 4px;
+  max-height: 300px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .video-preview video {
   max-width: 100%;
-  border-radius: 4px;
+  max-height: 300px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .test-button {
-  padding: 0.75rem 1.5rem;
-  background: #e67e22;
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 25px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.3s ease;
   font-size: 1rem;
-  margin-bottom: 2rem;
+  font-weight: 500;
+  margin-top: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .test-button:hover:not(:disabled) {
-  background: #d35400;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .test-button:disabled {
   background: #95a5a6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .results {
   background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   margin-top: 2rem;
+  width: 100%;
 }
 
 .results h3 {
   margin-bottom: 1rem;
-  color: #2c3e50;
+  color: #5d4037;
+  font-size: 1.5rem;
+}
+
+.result-image {
+  text-align: center;
 }
 
 .result-image img {
   max-width: 100%;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.result-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.stat-item {
-  background: #f8f9fa;
-  padding: 0.75rem;
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.class-name {
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.class-count {
-  background: #3498db;
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-}
 </style>

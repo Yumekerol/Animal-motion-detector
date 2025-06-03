@@ -6,13 +6,11 @@ import numpy as np
 import base64
 import time
 
-# Import your existing detector class
 from detect_animals2 import RoboflowAnimalDetector
 
 app = Flask(__name__)
 CORS(app)
 
-# Global variables for training progress
 training_progress = {
     'current_epoch': 0,
     'total_epochs': 0,
@@ -40,10 +38,8 @@ def test_webcam():
         if image is None:
             return jsonify({'error': 'Invalid image format'}), 400
 
-        # Load model and make prediction
         model_path = "models/best11.pt"
         if not os.path.exists(model_path):
-            # Try alternative paths
             alt_paths = ["models/best11.pt", "models/best11.pt"]
             for alt_path in alt_paths:
                 if os.path.exists(alt_path):
@@ -56,17 +52,13 @@ def test_webcam():
         from ultralytics import YOLO
         model = YOLO(model_path)
 
-        # Make prediction
         results = model(image, conf=0.3, verbose=False)
 
-        # Draw detections
         annotated_image = detector.draw_detections(image, results)
 
-        # Convert result to base64
         _, buffer = cv2.imencode('.jpg', annotated_image)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
 
-        # Count detections by class
         class_counts = {}
         for result in results:
             if result.boxes is not None:
@@ -89,7 +81,7 @@ def test_webcam():
 
 @app.route('/api/test/image', methods=['POST'])
 def test_image():
-    return test_webcam()  # Same logic
+    return test_webcam()
 
 
 @app.route('/api/test/video', methods=['POST'])
@@ -100,11 +92,9 @@ def test_video():
 
         file = request.files['video']
 
-        # Save uploaded video temporarily
         temp_video_path = f"temp_video_{int(time.time())}.mp4"
         file.save(temp_video_path)
 
-        # Load model
         model_path = "models/best11.pt"
         if not os.path.exists(model_path):
             alt_paths = ["models/best11.pt", "models/best11.pt"]
@@ -121,7 +111,6 @@ def test_video():
         from ultralytics import YOLO
         model = YOLO(model_path)
 
-        # Process video
         cap = cv2.VideoCapture(temp_video_path)
 
         if not cap.isOpened():
@@ -129,13 +118,11 @@ def test_video():
                 os.remove(temp_video_path)
             return jsonify({'error': 'Could not open video file'}), 400
 
-        # Get video properties
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        # Create output video
         output_path = f"outputs/processed_video_{int(time.time())}.mp4"
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
@@ -148,13 +135,10 @@ def test_video():
             if not ret:
                 break
 
-            # Make prediction
             results = model(frame, conf=0.3, verbose=False)
 
-            # Draw detections
             annotated_frame = detector.draw_detections(frame, results)
 
-            # Count detections
             for result in results:
                 if result.boxes is not None:
                     for box in result.boxes:
@@ -166,18 +150,15 @@ def test_video():
             out.write(annotated_frame)
             frame_count += 1
 
-            # Limit processing for demo (first 30 seconds)
             if frame_count > fps * 30:
                 break
 
         cap.release()
         out.release()
 
-        # Clean up temp file
         if os.path.exists(temp_video_path):
             os.remove(temp_video_path)
 
-        # For demo, return the first frame as image
         cap = cv2.VideoCapture(output_path)
         ret, first_frame = cap.read()
         cap.release()
@@ -198,7 +179,6 @@ def test_video():
         })
 
     except Exception as e:
-        # Clean up temp files
         if 'temp_video_path' in locals() and os.path.exists(temp_video_path):
             os.remove(temp_video_path)
         return jsonify({'error': f'Processing error: {str(e)}'}), 500
@@ -206,7 +186,6 @@ def test_video():
 
 @app.route('/api/evaluate', methods=['POST'])
 def evaluate_model():
-    """Evaluate model performance"""
     try:
         model_path = "models/best11.pt"
         if not os.path.exists(model_path):
@@ -222,7 +201,6 @@ def evaluate_model():
                 'message': 'No trained model found'
             })
 
-        # Load dataset config if not already loaded
         if not detector.class_names:
             detector.load_dataset_config()
 
@@ -242,16 +220,12 @@ def evaluate_model():
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
-    """Get current system status"""
     try:
-        # Check if dataset exists
         dataset_exists = os.path.exists(detector.merged_dataset_path)
 
-        # Check if model exists
         model_paths = ["models/best11.pt", "models/best11.pt", "models/best11.pt"]
         model_exists = any(os.path.exists(path) for path in model_paths)
 
-        # Load dataset info if available
         if dataset_exists and not detector.class_names:
             detector.load_dataset_config()
 

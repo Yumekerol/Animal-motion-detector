@@ -8,7 +8,7 @@ class ModelTester:
     def __init__(self, dataset_handler):
         self.dataset_handler = dataset_handler
 
-    def test_model_webcam(self, model_path="models/best12.pt"):
+    def test_model_webcam(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -53,7 +53,7 @@ class ModelTester:
         cap.release()
         cv2.destroyAllWindows()
 
-    def test_model_on_image(self, model_path="models/best12.pt"):
+    def test_model_on_image(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")
@@ -101,7 +101,7 @@ class ModelTester:
         except Exception as e:
             print(f"❌ Error processing image: {e}")
 
-    def test_model_on_video(self, model_path="models/best12.pt"):
+    def test_model_on_video(self, model_path="models/best11.pt"):
         if not os.path.exists(model_path):
             print("❌ Trained model not found!")
             print(f"Expected path: {model_path}")

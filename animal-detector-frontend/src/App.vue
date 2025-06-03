@@ -1,6 +1,5 @@
 <template>
   <div class="app">
-    <Header />
     <main>
       <router-view />
     </main>
@@ -8,33 +7,41 @@
 </template>
 
 <script>
-import Header from './components/Header.vue'
 
 export default {
-  name: 'App',
-  components: {
-    Header
-  }
+  name: 'App'
 }
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Itim', cursive;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
 }
 
 .app {
+  width: 100vw;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #8D8A33 0%, #8D8A33 100%);
 }
 
 main {
   flex: 1;
-  padding: 20px;
+  width: 100%;
+  padding: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 </style>
