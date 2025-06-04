@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import base64
 import time
+import threading
+from queue import Queue
 
 from detect_animals2 import RoboflowAnimalDetector
 
@@ -21,6 +23,18 @@ training_progress = {
 
 detector = RoboflowAnimalDetector()
 
+model_cache = {}
+
+
+def load_model_cached(model_path):
+    if model_path not in model_cache:
+        if os.path.exists(model_path):
+            from ultralytics import YOLO
+            model_cache[model_path] = YOLO(model_path)
+        else:
+            return None
+    return model_cache[model_path]
+
 
 @app.route('/api/test/webcam', methods=['POST'])
 def test_webcam():
@@ -30,7 +44,6 @@ def test_webcam():
 
         file = request.files['image']
 
-        # Convert uploaded file to OpenCV image
         image_bytes = file.read()
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -38,25 +51,25 @@ def test_webcam():
         if image is None:
             return jsonify({'error': 'Invalid image format'}), 400
 
-        model_path = "models/best11.pt"
-        if not os.path.exists(model_path):
-            alt_paths = ["models/best11.pt", "models/best11.pt"]
-            for alt_path in alt_paths:
-                if os.path.exists(alt_path):
-                    model_path = alt_path
-                    break
+        height, width = image.shape[:2]
+        if width > 1280 or height > 720:
+            scale = min(1280 / width, 720 / height)
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            image = cv2.resize(image, (new_width, new_height))
 
-        if not os.path.exists(model_path):
+        model_path = "models/best11.pt"
+        model = load_model_cached(model_path)
+
+        if model is None:
             return jsonify({'error': 'No trained model found'}), 400
 
-        from ultralytics import YOLO
-        model = YOLO(model_path)
-
-        results = model(image, conf=0.3, verbose=False)
+        results = model(image, conf=0.25, verbose=False, imgsz=640)
 
         annotated_image = detector.draw_detections(image, results)
 
-        _, buffer = cv2.imencode('.jpg', annotated_image)
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]
+        _, buffer = cv2.imencode('.jpg', annotated_image, encode_param)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
 
         class_counts = {}
@@ -91,25 +104,16 @@ def test_video():
             return jsonify({'error': 'No video provided'}), 400
 
         file = request.files['video']
-
         temp_video_path = f"temp_video_{int(time.time())}.mp4"
         file.save(temp_video_path)
 
         model_path = "models/best11.pt"
-        if not os.path.exists(model_path):
-            alt_paths = ["models/best11.pt", "models/best11.pt"]
-            for alt_path in alt_paths:
-                if os.path.exists(alt_path):
-                    model_path = alt_path
-                    break
+        model = load_model_cached(model_path)
 
-        if not os.path.exists(model_path):
+        if model is None:
             if os.path.exists(temp_video_path):
                 os.remove(temp_video_path)
             return jsonify({'error': 'No trained model found'}), 400
-
-        from ultralytics import YOLO
-        model = YOLO(model_path)
 
         cap = cv2.VideoCapture(temp_video_path)
 
@@ -123,20 +127,38 @@ def test_video():
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+        max_frames = min(total_frames, fps * 60)
+
+        if width > 1280 or height > 720:
+            scale = min(1280 / width, 720 / height)
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+        else:
+            new_width, new_height = width, height
+
         output_path = f"outputs/processed_video_{int(time.time())}.mp4"
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        out = cv2.VideoWriter(output_path, fourcc, fps, (new_width, new_height))
 
         class_counts = {}
         frame_count = 0
+        skip_frames = max(1, fps // 5)
 
-        while True:
+        print(f"Processando vídeo: {max_frames} frames, pulando {skip_frames} frames")
+
+        while frame_count < max_frames:
             ret, frame = cap.read()
             if not ret:
                 break
 
-            results = model(frame, conf=0.3, verbose=False)
+            if frame_count % skip_frames != 0:
+                frame_count += 1
+                continue
 
+            if new_width != width or new_height != height:
+                frame = cv2.resize(frame, (new_width, new_height))
+
+            results = model(frame, conf=0.3, verbose=False, imgsz=640)
             annotated_frame = detector.draw_detections(frame, results)
 
             for result in results:
@@ -147,11 +169,15 @@ def test_video():
                             class_name = detector.class_names[cls]
                             class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
-            out.write(annotated_frame)
-            frame_count += 1
+            for _ in range(skip_frames):
+                out.write(annotated_frame)
+                if frame_count >= max_frames:
+                    break
+                frame_count += 1
 
-            if frame_count > fps * 30:
-                break
+            if frame_count % (fps * 5) == 0:  # A cada 5 segundos
+                progress = (frame_count / max_frames) * 100
+                print(f"Progresso: {progress:.1f}%")
 
         cap.release()
         out.release()
@@ -163,11 +189,11 @@ def test_video():
         ret, first_frame = cap.read()
         cap.release()
 
+        img_base64 = None
         if ret:
-            _, buffer = cv2.imencode('.jpg', first_frame)
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]
+            _, buffer = cv2.imencode('.jpg', first_frame, encode_param)
             img_base64 = base64.b64encode(buffer).decode('utf-8')
-        else:
-            img_base64 = None
 
         return jsonify({
             'success': True,
@@ -175,7 +201,8 @@ def test_video():
             'classCounts': class_counts,
             'totalDetections': sum(class_counts.values()),
             'processedFrames': frame_count,
-            'videoPath': output_path
+            'videoPath': output_path,
+            'message': f'Processado {frame_count} frames de {total_frames} total'
         })
 
     except Exception as e:
@@ -184,18 +211,18 @@ def test_video():
         return jsonify({'error': f'Processing error: {str(e)}'}), 500
 
 
+@app.route('/api/test/video/progress', methods=['GET'])
+def video_progress():
+    return jsonify({'progress': 0})
+
+
 @app.route('/api/evaluate', methods=['POST'])
 def evaluate_model():
     try:
         model_path = "models/best11.pt"
-        if not os.path.exists(model_path):
-            alt_paths = ["models/best11.pt", "models/best11.pt"]
-            for alt_path in alt_paths:
-                if os.path.exists(alt_path):
-                    model_path = alt_path
-                    break
+        model = load_model_cached(model_path)
 
-        if not os.path.exists(model_path):
+        if model is None:
             return jsonify({
                 'success': False,
                 'message': 'No trained model found'
@@ -222,8 +249,7 @@ def evaluate_model():
 def get_status():
     try:
         dataset_exists = os.path.exists(detector.merged_dataset_path)
-
-        model_paths = ["models/best11.pt", "models/best11.pt", "models/best11.pt"]
+        model_paths = ["models/best11.pt"]
         model_exists = any(os.path.exists(path) for path in model_paths)
 
         if dataset_exists and not detector.class_names:
@@ -261,10 +287,6 @@ if __name__ == '__main__':
 
     print("🚀 Animal Detector Backend starting...")
     print("📡 API endpoints available:")
-    print("  - POST /api/datasets/download - Download and merge datasets")
-    print("  - GET  /api/datasets/validate - Validate dataset")
-    print("  - POST /api/train - Start training")
-    print("  - GET  /api/training/progress - Get training progress")
     print("  - POST /api/test/webcam - Test with webcam")
     print("  - POST /api/test/image - Test with image")
     print("  - POST /api/test/video - Test with video")

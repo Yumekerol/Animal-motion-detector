@@ -26,7 +26,6 @@ export default {
 
     const menuItems = [
       { id: 9, text: 'Test model', route: '/testing' },
-      { id: 10, text: 'Evaluate model performance', route: '/testing' }
     ]
 
     const navigateTo = (route) => {

@@ -21,6 +21,7 @@ export default {
   padding: 0;
   box-sizing: border-box;
   font-family: 'Itim', cursive;
+  color: #563008;
 }
 
 html, body {
