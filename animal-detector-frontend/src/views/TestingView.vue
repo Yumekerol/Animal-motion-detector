@@ -277,7 +277,7 @@ export default {
       evaluationResults.value = null
 
       try {
-        const response = await axios.post('https://animal-motion-detector.onrender.com/api/evaluate', {}, {
+        const response = await axios.post('https://localhost:5000/api/evaluate', {}, {
           timeout: 120000
         })
 
@@ -337,7 +337,7 @@ export default {
 
         const timeout = selectedOption.value === 3 ? 300000 : 30000 // 5 min para vídeo, 30s para imagem
 
-        const response = await axios.post(`https://animal-motion-detector.onrender.com${endpoint}`, formData, {
+        const response = await axios.post(`https://localhost:5000${endpoint}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           },
