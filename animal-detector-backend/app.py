@@ -43,7 +43,6 @@ def test_webcam():
             return jsonify({'error': 'No image provided'}), 400
 
         file = request.files['image']
-
         image_bytes = file.read()
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -64,9 +63,11 @@ def test_webcam():
         if model is None:
             return jsonify({'error': 'No trained model found'}), 400
 
-        results = model(image, conf=0.25, verbose=False, imgsz=640)
+        # Carrega os nomes das classes do modelo
+        class_names = model.names if hasattr(model, 'names') else {}
 
-        annotated_image = detector.draw_detections(image, results)
+        results = model(image, conf=0.25, verbose=False, imgsz=640)
+        annotated_image = detector.draw_detections(image, results, class_names)
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 85]
         _, buffer = cv2.imencode('.jpg', annotated_image, encode_param)
@@ -77,9 +78,8 @@ def test_webcam():
             if result.boxes is not None:
                 for box in result.boxes:
                     cls = int(box.cls[0])
-                    if cls < len(detector.class_names):
-                        class_name = detector.class_names[cls]
-                        class_counts[class_name] = class_counts.get(class_name, 0) + 1
+                    class_name = class_names.get(cls, f'Class_{cls}')
+                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
         return jsonify({
             'success': True,
@@ -158,6 +158,7 @@ def test_video():
             if new_width != width or new_height != height:
                 frame = cv2.resize(frame, (new_width, new_height))
 
+            class_names = model.names if hasattr(model, 'names') else {}
             results = model(frame, conf=0.3, verbose=False, imgsz=640)
             annotated_frame = detector.draw_detections(frame, results)
 
@@ -166,7 +167,7 @@ def test_video():
                     for box in result.boxes:
                         cls = int(box.cls[0])
                         if cls < len(detector.class_names):
-                            class_name = detector.class_names[cls]
+                            class_name = class_names.get(cls, f'Class_{cls}')
                             class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
             for _ in range(skip_frames):

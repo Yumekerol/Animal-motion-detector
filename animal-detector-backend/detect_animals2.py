@@ -562,7 +562,7 @@ class RoboflowAnimalDetector:
                     conf = float(box.conf[0])
                     cls = int(box.cls[0])
 
-                    class_name = class_names.get(cls, f'Class_{cls}') if class_names else f'Class_{cls}'
+                    class_name = class_names.get(cls, f'Class_{cls}')
                     class_counts[class_name] += 1
                     detection_count += 1
 
